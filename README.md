@@ -3,10 +3,10 @@
 
 ## Projects on Digital Image Processing
 
-- [Studying Morphological Operations](./morphological-operations/) (not finished yet)
+- [Studying Morphological Operations](./morphological-operations/) (under construction)
 
-- Basic Image Processing (under construction)
+- Basic Image Processing (coming soon)
 
-- Basic Image Segmentation (under construction)
+- Basic Image Segmentation (coming soon)
 
-- Geometric Transformations (under construction)
+- Geometric Transformations (coming soon)
