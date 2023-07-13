@@ -237,3 +237,140 @@ Figure 10 ![Figure 10](./figures/figure10.png)
 
 Several noise elements that are also identified as connected components are observed and marked by small bounding boxes.
 
+### 8 - Find a way to classify the bounding boxes as Text or Non-Text
+
+I will calculate the (a) ratio between the number of black pixels and the total number of pixels for each bounding box and the (b) ratio between the number of vertical and horizontal transitions from white to black and the total number of black pixels.
+
+With those numbers, I will search for a rule to classify the bounding boxes as Text or Non-Text.
+
+ a) Ratio between the number of black pixels and the total number of pixels (height versus width)
+- For this calculation, I counted the number of black pixels within each object's bounding rectangle using its position values (x, y) along with its height (h) and width (w).
+Some objects were entirely composed of black pixels, resulting in a value of zero for this calculation.
+
+```python
+# set a list to receive the black pixels ratio for each bounding box
+razao_pixels_pretos = []
+
+# Iterate over each contour found
+for cntr in contours:
+    # Extract the coordinates (x, y), width (w), and height (h) of the bounding rectangle
+    x, y, w, h = cv2.boundingRect(cntr)
+    
+    # Calculate the number of black pixels within the bounding rectangle
+    n_pixels_pretos = np.sum(img[y:y + h, x:x + w]) / 255
+    
+    # Calculate the total number of pixels within the bounding rectangle
+    total_pixels = h * w
+    
+    # Calculate the ratio between the number of black pixels and the total number of pixels
+    razao_pixels_pretos.append(n_pixels_pretos / total_pixels)
+
+# Print the number of calculated ratios
+print(len(razao_pixels_pretos))
+
+# Display the calculated ratios
+razao_pixels_pretos
+```
+
+In total, 52 connected components were found, and the calculated values for each of them were stored in a list. This list can be seen in Figure 11.
+
+Figure 11
+
+![Figure 11](./figures/figure11.png)
+
+b) Ratio between the number of vertical and horizontal transitions from white to black and the total number of black pixels
+- I used the diff function from NumPy to identify transitions from white to black values in a specific region of the image. In this case, I applied this function to each bounding rectangle region and stored the results in a list, shown in Figure 12.
+
+```python
+# set two lists to receive vertical and horizontal transitions values
+transicao_vert = []
+transicao_hor = []
+
+# Iterate over each contour found
+for cntr in contours:
+    # Extract the coordinates (x, y), width (w), and height (h) of the bounding rectangle
+    x, y, w, h = cv2.boundingRect(cntr)
+    
+    # Calculate the number of black pixels within the bounding rectangle
+    n_pixels_pretos = np.sum(img[y:y + h, x:x + w]) / 255
+    
+    if n_pixels_pretos != 0:
+        # Count the number of vertical transitions from white to black within the region
+        transicao_vert.append(np.count_nonzero(np.diff(img_original[y:y + h, x:x + w] / 255, axis=0)))
+        
+        # Count the number of horizontal transitions from white to black within the region
+        transicao_hor.append(np.count_nonzero(np.diff(img_original[y:y + h, x:x + w] / 255, axis=-1)))
+    else:
+        transicao_vert.append(0)
+        transicao_hor.append(0)
+
+# Calculate the ratio between the sum of vertical and horizontal transitions and the number of black pixels
+razao_transicoes_pxlpretos = ((np.array(transicao_vert) + np.array(transicao_hor)) / n_pixels_pretos).tolist()
+
+# Print the number of calculated ratios
+print(len(razao_transicoes_pxlpretos))
+
+# Display the calculated ratios
+razao_transicoes_pxlpretos
+```
+
+Figure 12
+
+![Figure 12](./figures/figure12.png)
+
+Observing the values of items (a) and (b) above, I arrived at a rule to determine whether a connected component would be text or non-text.
+
+The rule is described as follows:
+
+- Ratio of black pixels to total pixels > 0.07
+
+- 1 > Ratio of transitions from white to black to total black pixels > 0.001
+
+Applying this rule, I was able to classify the connected components as text or non-text with a high level of accuracy, except for two cases where the number 1 and number 3 ended up being part of the connected component of the second graphical element in the image.
+
+```python
+# set a counter variable
+count = 0
+# set a list for each connected component classification
+classificacao = []
+# copy the original image
+img_9 = img_original.copy()
+
+# Iterate over each contour found
+for cntr in contours:
+    # Extract the coordinates (x, y), width (w), and height (h) of the bounding rectangle
+    x, y, w, h = cv2.boundingRect(cntr)
+    n_pixels = (h) * (w)
+    
+    if razao_pixels_pretos[count] != 0 \
+            and razao_pixels_pretos[count] > 0.07 \
+            and razao_transicoes_pxlpretos[count] > 0.001 \
+            and razao_transicoes_pxlpretos[count] < 1:
+        # If the connected component meets the classification criteria, append 1 to the classification list
+        classificacao.append(1)
+
+        # Draw a rectangle around the connected component with a padding of 10 pixels
+        pad = 10
+        x, y, w, h = cv2.boundingRect(cntr)
+        cv2.rectangle(img_9, (x-pad, y-pad), (x+w+pad, y+h+pad), (0, 0, 255), 4)
+    else:
+        # If the connected component does not meet the classification criteria, append 0 to the classification list
+        classificacao.append(0)
+
+    count = count + 1
+```
+
+My script was able to count 39 Text lines in the original image.
+
+Some of these connected components are shown in Figure 13.
+
+Figure 13
+
+![Figure 13](./figures/figure13.png)
+
+The result of segmenting the elements into text and non-text for the entire image is presented in Figure 14.
+
+Figure 14
+
+![Figure 14](./figures/figure14.png)
+
