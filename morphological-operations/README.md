@@ -331,7 +331,7 @@ Applying this rule, I was able to classify the connected components as text or n
 ```python
 # set a counter variable
 count = 0
-# set a list for each connected component classification
+# set a list to receive each connected component classification
 classificacao = []
 # copy the original image
 img_9 = img_original.copy()
