@@ -374,3 +374,181 @@ Figure 14
 
 ![Figure 14](./figures/figure14.png)
 
+### 9 - Application of appropriate morphological operators to segment each line of text into word blocks
+
+Now I am going to use the same structuring element as in steps 1 and 2, (1, 100), for the horizontal closing operation of the text lines. Figures 4 and 5 serve as a reference for the result of this operation involving image dilation and erosion with the same structuring element.
+
+Then I will apply closing in the vertical direction, but with a smaller structuring element in an attempt to make each word become a connected component. The dimensions of the structuring element in this operation will be (30, 1). The closing operation here will be performed by dilation and erosion with the same structuring element.
+
+```python
+# Horizontal closing operation
+
+# Horizontal dilation
+# Create a structuring element with dimensions (1, 100)
+kernel = np.ones((1, 100))
+# Dilate the image 'img' using the defined structuring element
+img_10 = cv2.dilate(img, kernel, iterations=1)
+
+# Horizontal erosion
+# Erode the dilated image 'img_10' using the defined structuring element
+img_11 = cv2.erode(img_10, kernel, iterations=1)
+```
+
+```python
+# Vertical closing operation
+
+# Vertical dilation
+# Create a structuring element with dimensions (30, 1)
+kernel = np.ones((30, 1))
+# Dilate the image 'img' using the defined structuring element
+img_12 = cv2.dilate(img, kernel, iterations=1)
+
+# Vertical erosion
+# Erode the dilated image 'img_12' using the same structuring element
+img_13 = cv2.erode(img_12, kernel, iterations=1)
+```
+
+The next step will be to intersect the results of the horizontal and vertical closings in such a way that the word blocks are spaced between lines and between words, and closer in relation to the letters of each word. With this, a closing operation with an appropriate structuring element can make each word an individual connected component separated from the other words. The result of this is shown in the Figure 15.
+
+```python
+# Perform bitwise AND operation (intersection) between the images 'img_11' and 'img_13'
+img_14 = np.bitwise_and(img_11, img_13)
+
+# Create a figure with a size of 15x15 inches
+plt.figure(figsize=(15, 15))
+
+# Display the image 'img_14'
+plt.imshow(img_14, cmap="gray")
+
+# Show the plot
+plt.show()
+```
+
+Figure 15
+
+![Figure 15](./figures/figure15.png)
+
+The next step is to perform a closing operation to turn the words in the image into connected components.
+After testing some values, I defined the structuring element as having dimensions (8, 12) for the closing to be applied to the intersection image of horizontal and vertical closings. With these dimensions, the letters of the words will be connected, forming connected components at the word level. The result of this operation is presented in Figure 16.
+
+```python
+# Create a structuring element with dimensions (8, 12)
+kernel = np.ones((8, 12))
+
+# Perform morphological closing on the image 'img_14' using the defined structuring element
+img_15 = cv2.morphologyEx(img_14, cv2.MORPH_CLOSE, kernel)
+
+# Create a figure with a size of 15x15 inches
+plt.figure(figsize=(15, 15))
+
+# Display the resulting image after morphological closing
+plt.imshow(img_15, cmap="gray")
+
+# Show the plot
+plt.show()
+```
+
+Figure 16
+
+![Figure 16](./figures/figure16.png)
+
+The next step is to classify each of the connected components as Text and Non-Text components. I will use the same metrics and criteria I have used previously in items 8 and 9.
+
+```python
+# Find contours in the image 'img_15' using the external retrieval mode and simple chain approximation
+contours = cv2.findContours(img_15, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+# If the OpenCV version is older (returns 3 values), select the second value as contours
+contours = contours[0] if len(contours) == 2 else contours[1]
+
+# Create a copy of the original image 'img_original'
+img_16 = img_original.copy()
+
+# Iterate over each contour
+for cntr in contours:
+    # Get the bounding box coordinates of the contour
+    pad = 10
+    x, y, w, h = cv2.boundingRect(cntr)
+    
+    # Draw a rectangle around the bounding box
+    cv2.rectangle(img_16, (x - pad, y - pad), (x + w + pad, y + h + pad), (0, 0, 255), 4)
+
+
+# List to store the ratio of black pixels
+razao_pixels_pretos = []
+
+# Iterate over each contour
+for cntr in contours:
+    x, y, w, h = cv2.boundingRect(cntr)
+    
+    # Count the number of black pixels within the contour's bounding box
+    n_pixels_pretos = np.sum(img[y:y + h, x:x + w]) / 255
+    
+    # Calculate the total number of pixels within the bounding box
+    total_pixels = h * w
+    
+    # Compute the ratio of black pixels to total pixels
+    razao_pixels_pretos.append(n_pixels_pretos / total_pixels)
+
+# Lists to store the transition ratios and total number of black pixels for each contour
+transicao_vert = []
+transicao_hor = []
+
+# Iterate over each contour again
+for cntr in contours:
+    x, y, w, h = cv2.boundingRect(cntr)
+    
+    # Count the number of black pixels within the contour's bounding box
+    n_pixels_pretos = np.sum(img[y:y + h, x:x + w]) / 255
+    
+    if n_pixels_pretos != 0:
+        # Compute the number of transitions from white to black vertically and horizontally
+        transicao_vert.append(np.count_nonzero(np.diff(img_original[y:y + h, x:x + w] / 255, axis=0)))
+        transicao_hor.append(np.count_nonzero(np.diff(img_original[y:y + h, x:x + w] / 255, axis=-1)))
+    else:
+        transicao_vert.append(0)
+        transicao_hor.append(0)
+
+# Compute the ratio of transitions to the number of black pixels
+razao_transicoes_pxlpretos = ((np.array(transicao_vert) + np.array(transicao_hor)) / n_pixels_pretos).tolist()
+
+# Classification based on defined criteria
+count = 0
+classificacao = []
+img_17 = img_original.copy()
+
+for cntr in contours:
+    x, y, w, h = cv2.boundingRect(cntr)
+    n_pixels = (h) * (w)
+    if razao_pixels_pretos[count] != 0 \
+            and razao_pixels_pretos[count] > 0.06 \
+            and razao_transicoes_pxlpretos[count] > 0.001 \
+            and razao_transicoes_pxlpretos[count] < 1:
+        classificacao.append(1)
+        # Draw rectangles around classified text elements
+        pad = 10
+        cv2.rectangle(img_17, (x - pad, y - pad), (x + w + pad, y + h + pad), (0, 0, 255), 4)
+    else:
+        classificacao.append(0)
+    count = count + 1
+
+# Display the result
+print('Número de palavras:', sum(classificacao))
+plt.figure(figsize=(15, 15))
+plt.imshow(img_17, cmap="gray")
+plt.show()
+```
+
+I was able to identify 240 words, including numbers, in the image. The Figure 17 shows each identified word with bounding boxes.
+
+Figure 17
+
+![Figure 17](./figures/figure17.png)
+
+
+## Conclusion
+
+
+Morphological operators have proven to be powerful and efficient when the appropriate structuring elements are defined with sufficient time and effort. However, the segmentations were not entirely accurate as some small text blocks were not properly segmented, such as the numbers 1 and 3 near the bottom part of the image when searching for text lines. However, these blocks were correctly identified when the goal was to identify individual word blocks within the image.
+
+Another issue encountered, which would require further work, is that words containing quotation marks or located near punctuation marks such as periods and dashes had these marks identified as part of the words. Further exploration or the application of other techniques may yield more precise separation results in terms of differentiating between words and punctuation marks, for example.
