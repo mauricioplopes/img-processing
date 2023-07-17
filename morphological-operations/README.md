@@ -1,6 +1,6 @@
 # Digital Image Processing
 ---
-## Studying Morphological Operations
+## Studying Morphological Operators
 #### Author: Maurício Pereira Lopes
 ---
 
