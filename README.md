@@ -7,6 +7,6 @@
 
 - [Basic Image Processing](./basic-img-processing/)
 
-- Basic Image Segmentation (soon)
+- [Limiar & binarization](./binarization/)
 
 - Geometric Transformations (soon)
